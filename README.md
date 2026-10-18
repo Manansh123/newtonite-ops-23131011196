@@ -119,6 +119,17 @@ on macOS/Windows set `CHROME_PATH` to your Chrome executable.
 
 ## Deployment
 
+### Live Demo
+https://newtonite-ops-k2kh.onrender.com/login
+
+### Demo Credentials
+Password for all demo users: `Password123!`
+
+- Admin: `asha.admin@ops.test`
+- Lead: `priya.lead@ops.test`
+- Member: `aman.member@ops.test`
+- Viewer: `kabir.viewer@ops.test`
+
 The app is **one Node service plus PostgreSQL**: in production the Express server also serves the built React app (with SPA fallback,
 so refreshing `/items/<id>` works) from the **same origin** as the API. That means no CORS, no API base-URL setting, and no localhost
 URLs in the production bundle (the UI calls the relative path `/api`).
