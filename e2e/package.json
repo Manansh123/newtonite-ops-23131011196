@@ -1,0 +1,10 @@
+{
+  "name": "ops-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Real-browser end-to-end checks (optional, separate from the Jest API suite)",
+  "scripts": { "test": "node run.mjs" },
+  "dependencies": { "pg": "^8.13.0", "puppeteer-core": "^24.0.0" },
+  "optionalDependencies": { "@sparticuz/chromium": "^138.0.0" }
+}

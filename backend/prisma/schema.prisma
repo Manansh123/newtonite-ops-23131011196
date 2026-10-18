@@ -1,0 +1,167 @@
+// Prisma is used as the typed query layer. The authoritative DDL (indexes, CHECKs, trigger)
+// lives in db/migrations/*.sql and is applied by `npm run db:migrate`.
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VIEWER
+  MEMBER
+  LEAD
+  ADMIN
+
+  @@map("role")
+}
+
+enum ItemType {
+  INCIDENT
+  CUSTOMER_ISSUE
+  PAYMENT
+  COMPLIANCE
+  TASK
+
+  @@map("item_type")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("priority")
+}
+
+enum ItemStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_APPROVAL
+  RESOLVED
+  CLOSED
+
+  @@map("item_status")
+}
+
+enum ActivityType {
+  CREATED
+  STATUS_CHANGED
+  ASSIGNED
+  PRIORITY_CHANGED
+  FIELDS_UPDATED
+  COMMENT_ADDED
+
+  @@map("activity_type")
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  memberships     Membership[]
+  assignedItems   WorkItem[]       @relation("assignee")
+  createdItems    WorkItem[]       @relation("creator")
+  events          ActivityEvent[]
+  comments        Comment[]
+  idempotencyKeys IdempotencyKey[]
+
+  @@map("users")
+}
+
+model Team {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  memberships Membership[]
+  items       WorkItem[]
+
+  @@map("teams")
+}
+
+model Membership {
+  userId String @map("user_id") @db.Uuid
+  teamId String @map("team_id") @db.Uuid
+  role   Role
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([userId, teamId])
+  @@map("memberships")
+}
+
+model WorkItem {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  description String     @default("")
+  type        ItemType
+  priority    Priority   @default(MEDIUM)
+  status      ItemStatus @default(OPEN)
+  teamId      String     @map("team_id") @db.Uuid
+  assigneeId  String?    @map("assignee_id") @db.Uuid
+  createdById String     @map("created_by_id") @db.Uuid
+  dueDate     DateTime?  @map("due_date") @db.Timestamptz(3)
+  version     Int        @default(1)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  team      Team            @relation(fields: [teamId], references: [id])
+  assignee  User?           @relation("assignee", fields: [assigneeId], references: [id])
+  createdBy User            @relation("creator", fields: [createdById], references: [id])
+  events    ActivityEvent[]
+  comments  Comment[]
+
+  @@map("work_items")
+}
+
+model ActivityEvent {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seq       BigInt       @default(autoincrement())
+  itemId    String       @map("item_id") @db.Uuid
+  actorId   String       @map("actor_id") @db.Uuid
+  type      ActivityType
+  fromValue String?      @map("from_value")
+  toValue   String?      @map("to_value")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  item  WorkItem @relation(fields: [itemId], references: [id])
+  actor User     @relation(fields: [actorId], references: [id])
+
+  @@map("activity_events")
+}
+
+model Comment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId    String   @map("item_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  item   WorkItem @relation(fields: [itemId], references: [id])
+  author User     @relation(fields: [authorId], references: [id])
+
+  @@map("comments")
+}
+
+model IdempotencyKey {
+  userId         String   @map("user_id") @db.Uuid
+  key            String
+  requestHash    String   @map("request_hash")
+  responseStatus Int?     @map("response_status")
+  responseBody   Json?    @map("response_body")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
+  @@map("idempotency_keys")
+}
